@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  mail2pdf:
+    build: .
+    container_name: mail2pdf-nextgen
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./data/input:/app/data/input
+      - ./data/output:/app/data/output
+    environment:
+      - PYTHONUNBUFFERED=1
+      - FLASK_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
