@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Documentation API - Mail2PDF NextGen">
+    <title>Documentation - Mail2PDF NextGen</title>
+    <style>
+        :root {
+            --primary-color: #0088CC;
+            --secondary-color: #00AA66;
+            --accent-color: #FFD700;
+            --background-color: #f5f5f5;
+            --text-color: #333333;
+            --border-color: #dddddd;
+            --code-bg: #f4f4f4;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--background-color) 0%, #ffffff 100%);
+            color: var(--text-color);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .tab-button {
+            padding: 12px 25px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button:hover {
+            color: var(--primary-color);
+        }
+
+        .tab-button.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .tab-content {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .tab-content h2 {
+            color: var(--primary-color);
+            font-size: 24px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--secondary-color);
+            padding-bottom: 10px;
+        }
+
+        .tab-content h3 {
+            color: var(--primary-color);
+            font-size: 18px;
+            margin-top: 25px;
+            margin-bottom: 12px;
+        }
+
+        .code-block {
+            background-color: var(--code-bg);
+            border: 1px solid var(--border-color);
+            border-left: 4px solid var(--primary-color);
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .api-endpoint {
+            background-color: rgba(0,136,204,0.05);
+            border-left: 4px solid var(--primary-color);
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+
+        .api-endpoint .method {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+            font-size: 12px;
+            margin-right: 10px;
+        }
+
+        .method.post {
+            background-color: var(--accent-color);
+            color: #333;
+        }
+
+        .method.get {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .endpoint-path {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .parameter-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .parameter-table th {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .parameter-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .parameter-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        .parameter-table code {
+            background-color: var(--code-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .note {
+            background-color: rgba(0,170,102,0.05);
+            border-left: 4px solid var(--secondary-color);
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+
+        .note strong {
+            color: var(--secondary-color);
+        }
+
+        .warning {
+            background-color: rgba(255,107,107,0.05);
+            border-left: 4px solid #ff6b6b;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+
+        .warning strong {
+            color: #ff6b6b;
+        }
+
+        .example-list {
+            list-style: none;
+            margin: 15px 0;
+        }
+
+        .example-list li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .example-list li:before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .back-link {
+            display: inline-block;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            margin-top: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background-color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px 20px;
+            color: #999;
+            font-size: 13px;
+            border-top: 1px solid var(--border-color);
+            margin-top: 40px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 15px;
+            }
+
+            .tab-content {
+                padding: 20px 15px;
+            }
+
+            .tabs {
+                gap: 5px;
+            }
+
+            .tab-button {
+                padding: 10px 15px;
+                font-size: 13px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📚 Documentation</h1>
+        <div>Mail2PDF NextGen - Guide Complet</div>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('web')">🌐 Web API</button>
+            <button class="tab-button" onclick="switchTab('cli')">⌨️ CLI</button>
+            <button class="tab-button" onclick="switchTab('docker')">🐳 Docker</button>
+            <button class="tab-button" onclick="switchTab('python')">🐍 Python Module</button>
+        </div>
+
+        <!-- Web API Tab -->
+        <div id="web" class="tab-content active">
+            <h2>Web API Documentation</h2>
+            <p>API REST pour la conversion d'emails en PDF via HTTP.</p>
+
+            <h3>Endpoints</h3>
+
+            <div class="api-endpoint">
+                <span class="method post">POST</span>
+                <span class="endpoint-path">/api/upload</span>
+                <p style="margin-top: 10px;">Importer et convertir des fichiers emails.</p>
+            </div>
+
+            <p><strong>Parameters:</strong></p>
+            <table class="parameter-table">
+                <tr>
+                    <th>Parameter</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><code>files</code></td>
+                    <td>FormData</td>
+                    <td>Fichiers emails (EML, MSG, MBOX, ZIP)</td>
+                </tr>
+            </table>
+
+            <p><strong>Response (200 OK):</strong></p>
+            <div class="code-block">{
+    "session_id": "a1b2c3d4",
+    "timestamp": "2024-01-15T10:30:00",
+    "files_processed": 2,
+    "files_success": 2,
+    "results": [
+        {
+            "input": "email.eml",
+            "output": "email.pdf",
+            "status": "success"
+        }
+    ]
+}</div>
+
+            <div class="api-endpoint">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/download/{session_id}</span>
+                <p style="margin-top: 10px;">Télécharger les PDFs générés en ZIP.</p>
+            </div>
+
+            <p><strong>Parameters:</strong></p>
+            <table class="parameter-table">
+                <tr>
+                    <th>Parameter</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><code>session_id</code></td>
+                    <td>String</td>
+                    <td>ID de session retourné par /api/upload</td>
+                </tr>
+            </table>
+
+            <p><strong>Response:</strong> ZIP file avec les PDFs</p>
+
+            <div class="api-endpoint">
+                <span class="method get">GET</span>
+                <span class="endpoint-path">/api/status/{session_id}</span>
+                <p style="margin-top: 10px;">Vérifier le statut d'une conversion.</p>
+            </div>
+
+            <h3>Exemple cURL</h3>
+            <div class="code-block">curl -X POST -F "files=@email.eml" \
+  http://localhost:5000/api/upload</div>
+
+            <h3>Exemple JavaScript</h3>
+            <div class="code-block">const formData = new FormData();
+formData.append('files', fileInput.files[0]);
+
+const response = await fetch('/api/upload', {
+    method: 'POST',
+    body: formData
+});
+
+const result = await response.json();
+console.log('Session ID:', result.session_id);</div>
+
+            <div class="note">
+                <strong>Note:</strong> Les fichiers sont supprimés automatiquement après 7 jours.
+            </div>
+        </div>
+
+        <!-- CLI Tab -->
+        <div id="cli" class="tab-content">
+            <h2>Interface Ligne de Commande (CLI)</h2>
+            <p>Utiliser Mail2PDF NextGen en ligne de commande.</p>
+
+            <h3>Installation</h3>
+            <div class="code-block">pip install -r requirements.txt</div>
+
+            <h3>Usage Basique</h3>
+            <div class="code-block">python main.py -i email.eml -o ./pdfs</div>
+
+            <h3>Options</h3>
+            <table class="parameter-table">
+                <tr>
+                    <th>Option</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><code>-i, --input</code></td>
+                    <td>Fichier ou dossier d'entrée (requis)</td>
+                </tr>
+                <tr>
+                    <td><code>-o, --output</code></td>
+                    <td>Dossier de sortie (défaut: ./output)</td>
+                </tr>
+                <tr>
+                    <td><code>-r, --recursive</code></td>
+                    <td>Scanner les sous-dossiers</td>
+                </tr>
+                <tr>
+                    <td><code>-v, --verbose</code></td>
+                    <td>Afficher les logs détaillés</td>
+                </tr>
+                <tr>
+                    <td><code>--config</code></td>
+                    <td>Fichier de configuration personnalisé</td>
+                </tr>
+                <tr>
+                    <td><code>--validate</code></td>
+                    <td>Valider sans convertir</td>
+                </tr>
+            </table>
+
+            <h3>Exemples</h3>
+            <ul class="example-list">
+                <li>Conversion simple: <code>python main.py -i email.eml</code></li>
+                <li>Répertoire récursif: <code>python main.py -i ./emails -r -v</code></li>
+                <li>Validation: <code>python main.py -i email.msg --validate</code></li>
+                <li>Configuration custom: <code>python main.py -i test.mbox --config custom.py</code></li>
+            </ul>
+
+            <div class="note">
+                <strong>Conseil:</strong> Utilisez <code>-v</code> ou <code>--verbose</code> pour déboguer les problèmes d'encodage.
+            </div>
+        </div>
+
+        <!-- Docker Tab -->
+        <div id="docker" class="tab-content">
+            <h2>Déploiement Docker</h2>
+            <p>Exécuter Mail2PDF NextGen dans un conteneur.</p>
+
+            <h3>Prérequis</h3>
+            <ul class="example-list">
+                <li>Docker 20.10+</li>
+                <li>docker-compose 1.29+</li>
+            </ul>
+
+            <h3>Démarrer avec docker-compose</h3>
+            <div class="code-block">docker-compose up -d</div>
+
+            <p>L'application sera disponible à: <code>http://localhost:5000</code></p>
+
+            <h3>Structure des Volumes</h3>
+            <table class="parameter-table">
+                <tr>
+                    <th>Container</th>
+                    <th>Host</th>
+                    <th>Usage</th>
+                </tr>
+                <tr>
+                    <td><code>/app/data/input</code></td>
+                    <td><code>./data/input</code></td>
+                    <td>Fichiers emails à convertir</td>
+                </tr>
+                <tr>
+                    <td><code>/app/data/output</code></td>
+                    <td><code>./data/output</code></td>
+                    <td>PDFs générés</td>
+                </tr>
+            </table>
+
+            <h3>Build Custom</h3>
+            <div class="code-block">docker build -t my-mail2pdf:latest .
+docker run -p 5000:5000 -v $(pwd)/data/input:/app/data/input \
+  -v $(pwd)/data/output:/app/data/output my-mail2pdf:latest</div>
+
+            <h3>Arrêter le container</h3>
+            <div class="code-block">docker-compose down</div>
+
+            <div class="warning">
+                <strong>Limitation:</strong> WeasyPrint necessite certaines dépendances système. 
+                Le Dockerfile inclut tout ce qui est nécessaire.
+            </div>
+        </div>
+
+        <!-- Python Module Tab -->
+        <div id="python" class="tab-content">
+            <h2>Module Python</h2>
+            <p>Utiliser Mail2PDF NextGen comme module Python.</p>
+
+            <h3>Installation</h3>
+            <div class="code-block">pip install -r requirements.txt</div>
+
+            <h3>Utilisation Basique</h3>
+            <div class="code-block">from main import EmailConverter
+
+converter = EmailConverter()
+pdf_path = converter.convert_email('email.eml', output_dir='./pdfs')
+print(f"PDF généré: {pdf_path}")</div>
+
+            <h3>Conversion de Répertoire</h3>
+            <div class="code-block">converter = EmailConverter()
+results = converter.convert_directory(
+    input_dir='./emails',
+    output_dir='./pdfs',
+    recursive=True
+)
+print(f"Fichiers convertis: {len(results)}")</div>
+
+            <h3>Validation</h3>
+            <div class="code-block">result = converter.validate('email.eml')
+print(result)
+# {'file': 'email.eml', 'exists': True, 'format': 'eml', 'parseable': True}</div>
+
+            <h3>Classes Principales</h3>
+            <table class="parameter-table">
+                <tr>
+                    <th>Classe</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><code>EmailConverter</code></td>
+                    <td>Engine principal de conversion</td>
+                </tr>
+                <tr>
+                    <td><code>EMLParser</code></td>
+                    <td>Parse fichiers RFC 2822</td>
+                </tr>
+                <tr>
+                    <td><code>MSGParser</code></td>
+                    <td>Parse fichiers Outlook</td>
+                </tr>
+                <tr>
+                    <td><code>MBOXParser</code></td>
+                    <td>Parse format MBOX</td>
+                </tr>
+                <tr>
+                    <td><code>EncodingManager</code></td>
+                    <td>Gestion 6-niveaux encoding</td>
+                </tr>
+                <tr>
+                    <td><code>PDFGenerator</code></td>
+                    <td>Génération PDF</td>
+                </tr>
+            </table>
+
+            <h3>Configuration</h3>
+            <div class="code-block">from config import get_config
+
+config = get_config()
+print(config['pdf']['page_size'])  # 'A4'
+print(config['html']['primary_color'])  # '#0088CC'</div>
+
+            <div class="note">
+                <strong>Exemple complet:</strong> Voir <code>examples.py</code> pour des cas d'usage détaillés.
+            </div>
+        </div>
+    </div>
+
+    <a href="/" class="back-link">← Retour à l'accueil</a>
+
+    <div class="footer">
+        <p>
+            <strong>Mail2PDF NextGen v2.0.0</strong> • Documentation complète
+            <br>
+            Ville de Fontaine 38600 • Licence MIT
+        </p>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Deactivate all buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+
+            // Activate clicked button
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+</html>
