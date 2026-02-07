@@ -8,7 +8,7 @@ import sys
 # Add parent directory to path to import app
 sys.path.append(str(Path(__file__).parent.parent))
 
-from app import app, load_dynamic_config
+from app import app, load_dynamic_config  # type: ignore
 
 class TestConfigFeature(unittest.TestCase):
     def setUp(self):
