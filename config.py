@@ -343,7 +343,7 @@ FLASK_CONFIG = {
 
 DOCKER_CONFIG = {
     'image': 'mail2pdf-nextgen',
-    'version': '2.0.0',
+    'version': '1.0.0',
     'base_image': 'python:3.11-slim',
     'user': 'appuser',
     'uid': 1000,
@@ -376,7 +376,7 @@ DOCKER_CONFIG = {
 
 APP_METADATA = {
     'name': 'Mail2PDF NextGen',
-    'version': '2.0.0',
+    'version': '1.0.0',
     'author': 'Ville de Fontaine 38600',
     'license': 'MIT',
     'homepage': 'https://github.com/yourusername/mail2pdf-nextgen',

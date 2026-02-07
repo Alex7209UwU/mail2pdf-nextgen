@@ -160,7 +160,7 @@ def main():
     """Run setup wizard."""
     print_header("Mail2PDF NextGen - Setup Wizard")
     
-    print(f"\nVersion: 2.0.0")
+    print(f"\nVersion: 1.0.0")
     print(f"Author: Ville de Fontaine 38600")
     print(f"License: MIT")
     

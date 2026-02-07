@@ -12,7 +12,7 @@ readme = Path('README.md').read_text(encoding='utf-8') if Path('README.md').exis
 
 setup(
     name='mail2pdf-nextgen',
-    version='2.0.0',
+    version='1.0.0',
     description='Advanced Email to PDF Converter with multi-format support',
     long_description=readme,
     long_description_content_type='text/markdown',

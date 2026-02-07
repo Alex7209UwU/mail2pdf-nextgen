@@ -2,10 +2,15 @@
 
 **Convertisseur Email vers PDF Moderne, Robuste et Production-Ready**
 
-**Version:** 2.0.0  
+**Version:** 1.0.0  
 **License:** MIT  
 **Auteur:** Ville de Fontaine 38600, France  
 **Source Originale:** https://gitlab.villejuif.fr/depots-public/mail2pdf
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![GitHub release](https://img.shields.io/github/release/Alex7209UwU/mail2pdf-nextgen.svg)](https://github.com/Alex7209UwU/mail2pdf-nextgen/releases)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Alex7209UwU/mail2pdf-nextgen/pulls)
 
 ---
 
@@ -288,7 +293,7 @@ Pour plus de détails: Voir [FULL_DOCUMENTATION.md](FULL_DOCUMENTATION.md)
 | Document | Contenu |
 |----------|---------|
 | [README.md](README.md) | Ce fichier (aperçu + quick start) |
-| [CHANGELOG.md](CHANGELOG.md) | Historique versions v2.0.0 |
+| [CHANGELOG.md](CHANGELOG.md) | Historique versions v1.0.0 |
 | [FULL_DOCUMENTATION.md](FULL_DOCUMENTATION.md) | Architecture ~ algorithmes détaillés |
 | [DEPLOYMENT_GITHUB.md](DEPLOYMENT_GITHUB.md) | CI/CD GitHub Actions |
 | [DEPLOYMENT_DOCKER.md](DEPLOYMENT_DOCKER.md) | Docker deployment guide |
@@ -479,7 +484,7 @@ kill -9 <PID>
 MIT License - Gratuit pour usage personnel et commercial
 
 ```
-Copyright (c) 2024 Ville de Fontaine 38600
+Copyright (c) 2026 Ville de Fontaine 38600
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files...
@@ -529,6 +534,6 @@ Avec support multi-format, interfaces variées, et documentation complète, c'es
 
 ---
 
-**Mail2PDF NextGen v2.0.0**
+**Mail2PDF NextGen v1.0.0**
 Ville de Fontaine 38600, France
 MIT License

@@ -20,7 +20,7 @@ Mail2PDF NextGen is fully containerized with:
 
 ```bash
 # 1. Clone repository
-git clone https://github.com/yourusername/mail2pdf-nextgen.git
+git clone https://github.com/Alex7209UwU/mail2pdf-nextgen.git
 cd mail2pdf-nextgen
 
 # 2. Start with docker-compose
@@ -297,7 +297,7 @@ sudo apt update
 sudo apt install -y docker.io docker-compose
 
 # 3. Clone and run
-git clone https://github.com/yourusername/mail2pdf-nextgen.git
+git clone https://github.com/Alex7209UwU/mail2pdf-nextgen.git
 cd mail2pdf-nextgen
 docker-compose up -d
 

@@ -151,7 +151,7 @@ Update **README.md** to point to your GitHub:
 
 ```markdown
 Before:
-- GitHub: https://github.com/yourusername/mail2pdf-nextgen
+- GitHub: https://github.com/Alex7209UwU/mail2pdf-nextgen
 
 After:
 - GitHub: https://github.com/YOUR_ACTUAL_USERNAME/mail2pdf-nextgen

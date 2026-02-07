@@ -1,6 +1,6 @@
 # Mail2PDF NextGen - CHANGELOG
 
-**Version 2.0.0** (2024-01-15)  
+**Version 1.0.0** (2026-02-08)  
 Production-Ready Release
 
 ---
@@ -127,11 +127,11 @@ Production-Ready Release
 
 ## 📝 Breaking Changes
 
-None - First production release (v2.0.0)
+None - First production release (v1.0.0)
 
 ## 🎓 Migration Guide
 
-Not applicable for v2.0.0 (new release)
+Not applicable for v1.0.0 (new release)
 
 ## 🙏 Credits
 
@@ -169,10 +169,10 @@ Not applicable for v2.0.0 (new release)
 ## 📞 Support
 
 For issues, questions, or contributions:
-- GitHub Issues: https://github.com/yourusername/mail2pdf-nextgen/issues
-- Discussions: https://github.com/yourusername/mail2pdf-nextgen/discussions
-- Email: dev@example.com
+- GitHub Issues: https://github.com/Alex7209UwU/mail2pdf-nextgen/issues
+- Discussions: https://github.com/Alex7209UwU/mail2pdf-nextgen/discussions
+- Email: alexis.giroudspro@outlook.fr
 
 ---
 
-**Mail2PDF NextGen v2.0.0**
+**Mail2PDF NextGen v1.0.0**

@@ -50,7 +50,7 @@ sudo chown $USER:$USER /opt/mail2pdf-nextgen
 cd /opt/mail2pdf-nextgen
 
 # Clone repository
-git clone https://github.com/yourusername/mail2pdf-nextgen.git .
+git clone https://github.com/Alex7209UwU/mail2pdf-nextgen.git .
 
 # Create virtualenv
 python3.11 -m venv venv
@@ -166,7 +166,7 @@ brew install cairo pango libffi
 mkdir -p ~/Applications/mail2pdf-nextgen
 cd ~/Applications/mail2pdf-nextgen
 
-git clone https://github.com/yourusername/mail2pdf-nextgen.git .
+git clone https://github.com/Alex7209UwU/mail2pdf-nextgen.git .
 
 python3 -m venv venv
 source venv/bin/activate
@@ -189,11 +189,11 @@ Create `~/Library/LaunchAgents/com.mail2pdf.plist`:
     <string>com.mail2pdf.app</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/USERNAME/Applications/mail2pdf-nextgen/venv/bin/python</string>
-        <string>/Users/USERNAME/Applications/mail2pdf-nextgen/app.py</string>
+        <string>/Users/Alex7209UwU/Applications/mail2pdf-nextgen/venv/bin/python</string>
+        <string>/Users/Alex7209UwU/Applications/mail2pdf-nextgen/app.py</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/Users/USERNAME/Applications/mail2pdf-nextgen</string>
+    <string>/Users/Alex7209UwU/Applications/mail2pdf-nextgen</string>
     <key>RunAtLoad</key>
     <true/>
     <key>StandardOutput</key>

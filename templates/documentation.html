@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -35,7 +36,7 @@
             color: white;
             padding: 30px 20px;
             text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .header h1 {
@@ -82,7 +83,7 @@
             background: white;
             border-radius: 8px;
             padding: 30px;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
             display: none;
         }
 
@@ -119,7 +120,7 @@
         }
 
         .api-endpoint {
-            background-color: rgba(0,136,204,0.05);
+            background-color: rgba(0, 136, 204, 0.05);
             border-left: 4px solid var(--primary-color);
             padding: 15px;
             margin: 15px 0;
@@ -182,7 +183,7 @@
         }
 
         .note {
-            background-color: rgba(0,170,102,0.05);
+            background-color: rgba(0, 170, 102, 0.05);
             border-left: 4px solid var(--secondary-color);
             padding: 15px;
             border-radius: 5px;
@@ -194,7 +195,7 @@
         }
 
         .warning {
-            background-color: rgba(255,107,107,0.05);
+            background-color: rgba(255, 107, 107, 0.05);
             border-left: 4px solid #ff6b6b;
             padding: 15px;
             border-radius: 5px;
@@ -273,6 +274,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="header">
         <h1>📚 Documentation</h1>
@@ -316,18 +318,18 @@
 
             <p><strong>Response (200 OK):</strong></p>
             <div class="code-block">{
-    "session_id": "a1b2c3d4",
-    "timestamp": "2024-01-15T10:30:00",
-    "files_processed": 2,
-    "files_success": 2,
-    "results": [
-        {
-            "input": "email.eml",
-            "output": "email.pdf",
-            "status": "success"
-        }
-    ]
-}</div>
+                "session_id": "a1b2c3d4",
+                "timestamp": "2024-01-15T10:30:00",
+                "files_processed": 2,
+                "files_success": 2,
+                "results": [
+                {
+                "input": "email.eml",
+                "output": "email.pdf",
+                "status": "success"
+                }
+                ]
+                }</div>
 
             <div class="api-endpoint">
                 <span class="method get">GET</span>
@@ -359,19 +361,19 @@
 
             <h3>Exemple cURL</h3>
             <div class="code-block">curl -X POST -F "files=@email.eml" \
-  http://localhost:5000/api/upload</div>
+                http://localhost:5000/api/upload</div>
 
             <h3>Exemple JavaScript</h3>
             <div class="code-block">const formData = new FormData();
-formData.append('files', fileInput.files[0]);
+                formData.append('files', fileInput.files[0]);
 
-const response = await fetch('/api/upload', {
-    method: 'POST',
-    body: formData
-});
+                const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+                });
 
-const result = await response.json();
-console.log('Session ID:', result.session_id);</div>
+                const result = await response.json();
+                console.log('Session ID:', result.session_id);</div>
 
             <div class="note">
                 <strong>Note:</strong> Les fichiers sont supprimés automatiquement après 7 jours.
@@ -430,7 +432,8 @@ console.log('Session ID:', result.session_id);</div>
             </ul>
 
             <div class="note">
-                <strong>Conseil:</strong> Utilisez <code>-v</code> ou <code>--verbose</code> pour déboguer les problèmes d'encodage.
+                <strong>Conseil:</strong> Utilisez <code>-v</code> ou <code>--verbose</code> pour déboguer les problèmes
+                d'encodage.
             </div>
         </div>
 
@@ -471,14 +474,14 @@ console.log('Session ID:', result.session_id);</div>
 
             <h3>Build Custom</h3>
             <div class="code-block">docker build -t my-mail2pdf:latest .
-docker run -p 5000:5000 -v $(pwd)/data/input:/app/data/input \
-  -v $(pwd)/data/output:/app/data/output my-mail2pdf:latest</div>
+                docker run -p 5000:5000 -v $(pwd)/data/input:/app/data/input \
+                -v $(pwd)/data/output:/app/data/output my-mail2pdf:latest</div>
 
             <h3>Arrêter le container</h3>
             <div class="code-block">docker-compose down</div>
 
             <div class="warning">
-                <strong>Limitation:</strong> WeasyPrint necessite certaines dépendances système. 
+                <strong>Limitation:</strong> WeasyPrint necessite certaines dépendances système.
                 Le Dockerfile inclut tout ce qui est nécessaire.
             </div>
         </div>
@@ -494,23 +497,23 @@ docker run -p 5000:5000 -v $(pwd)/data/input:/app/data/input \
             <h3>Utilisation Basique</h3>
             <div class="code-block">from main import EmailConverter
 
-converter = EmailConverter()
-pdf_path = converter.convert_email('email.eml', output_dir='./pdfs')
-print(f"PDF généré: {pdf_path}")</div>
+                converter = EmailConverter()
+                pdf_path = converter.convert_email('email.eml', output_dir='./pdfs')
+                print(f"PDF généré: {pdf_path}")</div>
 
             <h3>Conversion de Répertoire</h3>
             <div class="code-block">converter = EmailConverter()
-results = converter.convert_directory(
-    input_dir='./emails',
-    output_dir='./pdfs',
-    recursive=True
-)
-print(f"Fichiers convertis: {len(results)}")</div>
+                results = converter.convert_directory(
+                input_dir='./emails',
+                output_dir='./pdfs',
+                recursive=True
+                )
+                print(f"Fichiers convertis: {len(results)}")</div>
 
             <h3>Validation</h3>
             <div class="code-block">result = converter.validate('email.eml')
-print(result)
-# {'file': 'email.eml', 'exists': True, 'format': 'eml', 'parseable': True}</div>
+                print(result)
+                # {'file': 'email.eml', 'exists': True, 'format': 'eml', 'parseable': True}</div>
 
             <h3>Classes Principales</h3>
             <table class="parameter-table">
@@ -547,9 +550,9 @@ print(result)
             <h3>Configuration</h3>
             <div class="code-block">from config import get_config
 
-config = get_config()
-print(config['pdf']['page_size'])  # 'A4'
-print(config['html']['primary_color'])  # '#0088CC'</div>
+                config = get_config()
+                print(config['pdf']['page_size']) # 'A4'
+                print(config['html']['primary_color']) # '#0088CC'</div>
 
             <div class="note">
                 <strong>Exemple complet:</strong> Voir <code>examples.py</code> pour des cas d'usage détaillés.
@@ -561,7 +564,7 @@ print(config['html']['primary_color'])  # '#0088CC'</div>
 
     <div class="footer">
         <p>
-            <strong>Mail2PDF NextGen v2.0.0</strong> • Documentation complète
+            <strong>Mail2PDF NextGen v1.0.0</strong> • Documentation complète
             <br>
             Ville de Fontaine 38600 • Licence MIT
         </p>
@@ -587,4 +590,5 @@ print(config['html']['primary_color'])  # '#0088CC'</div>
         }
     </script>
 </body>
+
 </html>

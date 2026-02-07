@@ -16,7 +16,7 @@
 ### 2. Clone Repository (30 sec)
 
 ```bash
-git clone https://github.com/yourusername/mail2pdf-nextgen.git
+git clone https://github.com/Alex7209UwU/mail2pdf-nextgen.git
 cd mail2pdf-nextgen
 ```
 
