@@ -43,7 +43,7 @@
 
 ```bash
 # Cloner le dépôt
-git clone https://github.com/yourusername/mail2pdf-nextgen.git
+git clone https://github.com/Alex7209UwU/mail2pdf-nextgen.git
 cd mail2pdf-nextgen
 
 # Installer les dépendances
@@ -56,7 +56,7 @@ pip install .
 ### Option 2: Installation Docker
 
 ```bash
-git clone https://github.com/yourusername/mail2pdf-nextgen.git
+git clone https://github.com/Alex7209UwU/mail2pdf-nextgen.git
 cd mail2pdf-nextgen
 
 # Démarrer avec docker-compose
@@ -69,7 +69,7 @@ docker-compose up -d
 ### Option 3: Installation Développeur
 
 ```bash
-git clone https://github.com/yourusername/mail2pdf-nextgen.git
+git clone https://github.com/Alex7209UwU/mail2pdf-nextgen.git
 cd mail2pdf-nextgen
 
 # Créer virtualenv
@@ -501,16 +501,16 @@ Voir [LICENSE](LICENSE) pour texte complet.
 ### Resources
 
 - 📚 [Documentation Complète](FULL_DOCUMENTATION.md)
-- 🐛 [Reporting Issues](https://github.com/yourusername/mail2pdf-nextgen/issues)
-- 💬 [Discussions](https://github.com/yourusername/mail2pdf-nextgen/discussions)
-- 📧 Email: dev@example.com
+- 🐛 [Reporting Issues](https://github.com/Alex7209UwU/mail2pdf-nextgen/issues)
+- 💬 [Discussions](https://github.com/Alex7209UwU/mail2pdf-nextgen/discussions)
+- 📧 Email: alexis.giroudspro@outlook.fr
 
 ### Liens Importants
 
-- GitHub: https://github.com/yourusername/mail2pdf-nextgen
+- GitHub: https://github.com/Alex7209UwU/mail2pdf-nextgen
 - GitLab (Original): https://gitlab.villejuif.fr/depots-public/mail2pdf
 - PyPI: https://pypi.org/project/mail2pdf-nextgen (future)
-- Docker Hub: https://hub.docker.com/r/yourusername/mail2pdf-nextgen (future)
+- Docker Hub: https://hub.docker.com/r/Alex7209UwU/mail2pdf-nextgen (future)
 
 ---
 
