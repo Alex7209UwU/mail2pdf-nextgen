@@ -21,7 +21,7 @@ jobs:
       uses: docker/setup-buildx-action@v2
     
     - name: Build Docker image
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v6
       with:
         context: .
         push: false
@@ -39,7 +39,7 @@ jobs:
     
     - name: Push to Docker Hub (optional)
       if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
-      uses: docker/build-push-action@v4
+      uses: docker/build-push-action@v6
       with:
         context: .
         push: true
