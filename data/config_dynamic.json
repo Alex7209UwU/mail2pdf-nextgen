@@ -1,0 +1,11 @@
+{
+    "language": "fr",
+    "colors": {
+        "primary": "#0088CC",
+        "secondary": "#00AA66",
+        "accent": "#FFD700",
+        "background": "#f5f5f5",
+        "text": "#333333"
+    },
+    "logo_path": null
+}

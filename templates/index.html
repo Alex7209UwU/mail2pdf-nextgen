@@ -1,20 +1,55 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="{{ config.language }}">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Mail2PDF NextGen - Convertissez vos emails en PDF">
-    <meta name="author" content="Ville de Fontaine 38600">
-    <title>Mail2PDF NextGen - Conversion Email vers PDF</title>
+    <meta name="description" content="{{ text[config.language].tagline }}">
+    <meta name="author" content="{{ text[config.language].footer_brand }}">
+    <title>{{ text[config.language].title }} - {{ text[config.language].tagline }}</title>
     <style>
         :root {
-            --primary-color: #0088CC;
-            --secondary-color: #00AA66;
-            --accent-color: #FFD700;
+            --primary-color: {
+                    {
+                    config.colors.primary
+                }
+            }
+
+            ;
+
+            --secondary-color: {
+                    {
+                    config.colors.secondary
+                }
+            }
+
+            ;
+
+            --accent-color: {
+                    {
+                    config.colors.accent
+                }
+            }
+
+            ;
             --success-color: #51cf66;
             --warning-color: #FF6B6B;
-            --background-color: #f5f5f5;
-            --text-color: #333333;
+
+            --background-color: {
+                    {
+                    config.colors.background
+                }
+            }
+
+            ;
+
+            --text-color: {
+                    {
+                    config.colors.text
+                }
+            }
+
+            ;
             --border-color: #dddddd;
         }
 
@@ -37,12 +72,20 @@
             color: white;
             padding: 30px 20px;
             text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .header h1 {
             font-size: 32px;
             margin-bottom: 8px;
+        }
+
+        .header-logo {
+            max-height: 80px;
+            margin-bottom: 15px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .header .tagline {
@@ -54,7 +97,7 @@
         .header .city-brand {
             font-size: 13px;
             opacity: 0.85;
-            border-top: 1px solid rgba(255,255,255,0.3);
+            border-top: 1px solid rgba(255, 255, 255, 0.3);
             padding-top: 8px;
             margin-top: 8px;
         }
@@ -69,7 +112,7 @@
             background: white;
             border-radius: 8px;
             padding: 40px;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
             margin-bottom: 30px;
         }
 
@@ -85,19 +128,20 @@
             border-radius: 8px;
             padding: 40px;
             text-align: center;
-            background-color: rgba(0,136,204,0.02);
+            background-color: rgba(0, 136, 204, 0.02);
+            /* This could be dynamic but alpha is tricky with hex */
             cursor: pointer;
             transition: all 0.3s ease;
             margin-bottom: 20px;
         }
 
         .drop-zone:hover {
-            background-color: rgba(0,136,204,0.05);
+            background-color: rgba(0, 136, 204, 0.05);
             border-color: var(--secondary-color);
         }
 
         .drop-zone.dragover {
-            background-color: rgba(0,136,204,0.1);
+            background-color: rgba(0, 136, 204, 0.1);
             border-color: var(--accent-color);
             transform: scale(1.02);
         }
@@ -139,7 +183,7 @@
         .file-button:hover {
             background-color: var(--secondary-color);
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,136,204,0.3);
+            box-shadow: 0 4px 12px rgba(0, 136, 204, 0.3);
         }
 
         .secondary-button {
@@ -220,7 +264,7 @@
 
         .convert-button:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0,136,204,0.4);
+            box-shadow: 0 6px 20px rgba(0, 136, 204, 0.4);
         }
 
         .convert-button:disabled {
@@ -232,7 +276,7 @@
             background: white;
             border-radius: 8px;
             padding: 40px;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
             margin-bottom: 30px;
             display: none;
         }
@@ -259,12 +303,12 @@
         }
 
         .result-item.success {
-            background-color: rgba(81,207,102,0.1);
+            background-color: rgba(81, 207, 102, 0.1);
             border-left-color: var(--success-color);
         }
 
         .result-item.error {
-            background-color: rgba(255,107,107,0.1);
+            background-color: rgba(255, 107, 107, 0.1);
             border-left-color: var(--warning-color);
         }
 
@@ -298,7 +342,7 @@
         }
 
         .info-box {
-            background-color: rgba(0,136,204,0.05);
+            background-color: rgba(0, 136, 204, 0.05);
             border-left: 4px solid var(--primary-color);
             padding: 15px;
             border-radius: 4px;
@@ -345,6 +389,15 @@
             margin: 10px 0;
         }
 
+        .footer-link {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .footer-link:hover {
+            text-decoration: underline;
+        }
+
         @media (max-width: 768px) {
             .container {
                 padding: 20px 15px;
@@ -384,8 +437,13 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
         }
 
         .hidden {
@@ -393,49 +451,54 @@
         }
     </style>
 </head>
+
 <body>
     <div class="header">
-        <h1>📧 Mail2PDF NextGen</h1>
-        <div class="tagline">Convertisseur Email vers PDF - Multi-format</div>
-        <div class="city-brand">Ville de Fontaine 38600, France</div>
+        {% if config.logo_path %}
+        <img src="{{ url_for('static', filename=config.logo_path) }}" alt="Logo" class="header-logo">
+        {% endif %}
+        <h1>{{ text[config.language].title }}</h1>
+        <div class="tagline">{{ text[config.language].tagline }}</div>
+        <div class="city-brand">{{ text[config.language].city_brand }}</div>
     </div>
 
     <div class="container">
         <div class="upload-section">
-            <h2 class="upload-title">📤 Importer vos emails</h2>
+            <h2 class="upload-title">{{ text[config.language].upload_title }}</h2>
 
             <div class="info-box">
-                <strong>Formats supportés:</strong> EML, MSG (Outlook), MBOX (Thunderbird), ZIP
+                <strong>{{ text[config.language].supported_formats }}:</strong> EML, MSG (Outlook), MBOX (Thunderbird),
+                ZIP
                 <br>
-                <strong>Taille limite:</strong> 100 MB par fichier
+                <strong>{{ text[config.language].size_limit }}:</strong> 100 MB
             </div>
 
             <div class="drop-zone" id="dropZone">
                 <div class="drop-zone-icon">📁</div>
-                <p>Glissez-déposez vos fichiers ici</p>
-                <p class="text-small">ou</p>
+                <p>{{ text[config.language].drop_zone_text }}</p>
+                <p class="text-small">{{ text[config.language].or }}</p>
                 <button class="file-button" onclick="document.getElementById('fileInput').click()">
-                    Parcourir les fichiers
+                    {{ text[config.language].browse_files }}
                 </button>
                 <input type="file" id="fileInput" multiple accept=".eml,.msg,.mbox,.zip">
             </div>
 
             <div id="fileListContainer" class="hidden">
                 <div class="file-list">
-                    <div class="file-list-title">✓ Fichiers sélectionnés:</div>
+                    <div class="file-list-title">✓ {{ text[config.language].files_selected }}:</div>
                     <div id="fileList"></div>
                 </div>
             </div>
 
             <button class="convert-button" id="convertButton" disabled>
-                Convertir en PDF
+                {{ text[config.language].convert_button }}
             </button>
 
             <div id="resultContainer" class="results-section">
-                <h2 class="results-title">📊 Résultats</h2>
+                <h2 class="results-title">📊 {{ text[config.language].results_title }}</h2>
 
                 <div id="progressContainer" class="hidden">
-                    <div>Traitement en cours...</div>
+                    <div>{{ text[config.language].processing }}</div>
                     <div class="progress-bar">
                         <div class="progress-fill" id="progressFill"></div>
                     </div>
@@ -445,26 +508,29 @@
 
                 <div id="downloadContainer" class="hidden">
                     <button class="convert-button secondary-button" id="downloadButton">
-                        ⬇️ Télécharger les PDF (ZIP)
+                        ⬇️ {{ text[config.language].download_button }}
                     </button>
                 </div>
             </div>
         </div>
 
         <div class="nav-links">
-            <a href="/about" class="nav-link">À Propos</a>
-            <a href="/documentation" class="nav-link">Documentation</a>
-            <a href="https://github.com/yourusername/mail2pdf-nextgen" class="nav-link">GitHub</a>
+            <a href="/about" class="nav-link">{{ text[config.language].nav_about }}</a>
+            <a href="/documentation" class="nav-link">{{ text[config.language].nav_docs }}</a>
+            <a href="https://github.com/yourusername/mail2pdf-nextgen" class="nav-link">{{
+                text[config.language].nav_github }}</a>
+            <a href="/configure" class="nav-link" style="background-color: var(--secondary-color);">{{
+                text[config.language].nav_configure }}</a>
         </div>
     </div>
 
     <div class="footer">
         <div class="footer-divider">
-            <strong>Mail2PDF NextGen v2.0.0</strong> • Licence MIT
+            <strong>{{ text[config.language].footer_version }}</strong> • {{ text[config.language].footer_license }}
         </div>
         <div class="footer-divider">
-            Ville de Fontaine 38600 • Source originale:
-            <a href="https://gitlab.villejuif.fr/depots-public/mail2pdf" style="color: #0088CC;">GitLab</a>
+            {{ text[config.language].footer_brand }} • {{ text[config.language].footer_source }}:
+            <a href="https://gitlab.villejuif.fr/depots-public/mail2pdf" class="footer-link">GitLab</a>
         </div>
     </div>
 
@@ -615,4 +681,5 @@
         }
     </script>
 </body>
+
 </html>

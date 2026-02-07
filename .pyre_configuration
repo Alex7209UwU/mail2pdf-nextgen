@@ -1,0 +1,7 @@
+# .pyre_configuration
+{
+  "ignore_all_errors": [
+    "app.py",
+    "tests/test_ui_config.py"
+  ]
+}

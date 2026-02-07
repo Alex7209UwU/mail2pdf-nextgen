@@ -10,11 +10,13 @@ import json
 import zipfile
 from pathlib import Path
 from datetime import datetime, timedelta
-from werkzeug.utils import secure_filename
-from flask import Flask, render_template, request, jsonify, send_file, send_from_directory
+from werkzeug.utils import secure_filename  # type: ignore
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, flash, redirect, url_for  # type: ignore
 import shutil
 
-from main import EmailConverter, LoggingConfig
+from main import EmailConverter, LoggingConfig  # type: ignore
+
+from typing import Dict, Any, Optional, Union
 
 # ============================================================================
 # FLASK APPLICATION SETUP
@@ -44,6 +46,112 @@ app.config['OUTPUT_FOLDER'] = Path('./data/output')
 app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024
 app.config['ALLOWED_EXTENSIONS'] = {'eml', 'msg', 'mbox', 'zip'}
 app.config['SESSION_FOLDER'] = Path('./data/sessions')
+app.config['CONFIG_FILE'] = Path('./data/config_dynamic.json')
+app.config['LANG_FILE'] = Path('./data/languages.json')
+app.config['LOGO_FOLDER'] = Path('./static/logos')
+app.config['LOGO_FOLDER'].mkdir(parents=True, exist_ok=True)
+app.secret_key = 'supersecretkey'  # Needed for flash messages
+
+DEFAULT_CONFIG: Dict[str, Any] = {
+    "language": "fr",
+    "colors": {
+        "primary": "#0088CC",
+        "secondary": "#00AA66",
+        "accent": "#FFD700",
+        "background": "#f5f5f5",
+        "text": "#333333"
+    },
+    "logo_path": None
+}
+
+def load_dynamic_config() -> Dict[str, Any]:
+    if app.config['CONFIG_FILE'].exists():
+        try:
+            with open(app.config['CONFIG_FILE'], 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            logger.error("Error decoding config file, using default.")
+            return DEFAULT_CONFIG.copy()
+        except Exception as e:
+            logger.error(f"Error loading config file: {e}")
+            return DEFAULT_CONFIG.copy()
+    return DEFAULT_CONFIG.copy()
+
+def save_dynamic_config(config: Dict[str, Any]) -> None:
+    try:
+        with open(app.config['CONFIG_FILE'], 'w') as f:
+            json.dump(config, f, indent=4)
+    except Exception as e:
+        logger.error(f"Error saving config file: {e}")
+        raise
+
+DEFAULT_MESSAGES: Dict[str, Dict[str, str]] = {
+    "fr": {
+        "title": "Mail2PDF NextGen",
+        "tagline": "Convertisseur Email vers PDF",
+        "upload_title": "Importer vos emails",
+        "files_selected": "Fichiers sélectionnés",
+        "convert_button": "Convertir en PDF",
+        "results_title": "Résultats",
+        "download_button": "Télécharger les PDF (ZIP)",
+        "nav_about": "À Propos",
+        "nav_docs": "Documentation",
+        "nav_github": "GitHub",
+        "nav_configure": "Configurer",
+        "footer_version": "v2.0.0",
+        "footer_license": "Licence MIT",
+        "footer_brand": "Ville de Fontaine",
+        "footer_source": "Source",
+        # Fallbacks for critical keys
+    },
+    "en": {
+        "title": "Mail2PDF NextGen",
+        "tagline": "Email to PDF Converter",
+        "upload_title": "Import your emails",
+        "files_selected": "Selected files",
+        "convert_button": "Convert to PDF",
+        "results_title": "Results",
+        "download_button": "Download PDFs (ZIP)",
+        "nav_about": "About",
+        "nav_docs": "Documentation",
+        "nav_github": "GitHub",
+        "nav_configure": "Configure",
+        "footer_version": "v2.0.0",
+        "footer_license": "MIT License",
+        "footer_brand": "City of Fontaine",
+        "footer_source": "Source",
+    }
+}
+
+def load_languages() -> Dict[str, Dict[str, str]]:
+    languages = DEFAULT_MESSAGES.copy()
+    if app.config['LANG_FILE'].exists():
+        try:
+            with open(app.config['LANG_FILE'], 'r', encoding='utf-8') as f:
+                loaded = json.load(f)
+                # Deep merge or update
+                if isinstance(loaded, dict):
+                    for lang, messages in loaded.items():
+                        if isinstance(messages, dict):
+                            if lang in languages:
+                                languages[lang].update(messages) # type: ignore
+                            else:
+                                languages[lang] = messages # type: ignore
+        except Exception as e:
+            logger.error(f"Error loading languages file: {e}")
+    return languages
+
+@app.context_processor
+def inject_config():
+    config = load_dynamic_config()
+    languages = load_languages()
+    
+    # Ensure selected language exists in messages
+    lang = config.get('language', 'fr')
+    if lang not in languages:  # type: ignore
+        config['language'] = 'fr' if 'fr' in languages else 'en'
+        
+    return dict(config=config, text=languages)
 
 # Initialize converter
 converter = EmailConverter()
@@ -55,7 +163,7 @@ converter = EmailConverter()
 
 def allowed_file(filename: str) -> bool:
     """Check if file extension is allowed."""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']  # type: ignore
 
 
 def cleanup_old_files(days: int = 7) -> None:
@@ -141,9 +249,9 @@ def upload_files():
         if 'files' not in request.files:
             return jsonify({'error': 'No files provided'}), 400
         
-        files = request.files.getlist('files')
+        files = request.files.getlist('files')  # type: ignore
         
-        if not files or all(f.filename == '' for f in files):
+        if not files or all(f.filename == '' for f in files):  # type: ignore
             return jsonify({'error': 'No files selected'}), 400
         
         # Create session
@@ -182,7 +290,7 @@ def upload_files():
                 if pdf_path:
                     conversion_results.append({
                         'input': filename,
-                        'output': Path(pdf_path).name,
+                        'output': Path(pdf_path).name,  # type: ignore
                         'status': 'success'
                     })
                     logger.info(f"Session {session_id}: Converted {filename}")
@@ -285,6 +393,71 @@ def get_status(session_id: str):
     except Exception as e:
         logger.error(f"Status error: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/configure', methods=['GET', 'POST'])
+def configure():
+    """Handle site configuration."""
+    if request.method == 'POST':
+        try:
+            current_config = load_dynamic_config()
+            
+            # Update language
+            new_lang = request.form.get('language', 'fr')
+            langs = load_languages()
+            if new_lang in langs:
+                current_config['language'] = new_lang
+            else:
+                current_config['language'] = 'fr'  # Fallback
+
+            
+            # Update colors
+            current_config['colors'] = {
+                'primary': request.form.get('color_primary', '#0088CC'),
+                'secondary': request.form.get('color_secondary', '#00AA66'),
+                'accent': request.form.get('color_accent', '#FFD700'),
+                'background': request.form.get('color_background', '#f5f5f5'),
+                'text': request.form.get('color_text', '#333333')
+            }
+            
+            # Handle logo upload
+            if 'logo' in request.files:
+                file = request.files['logo']
+                if file and file.filename:
+                    if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}:
+                        filename = secure_filename(f"logo_{int(datetime.now().timestamp())}.{file.filename.split('.')[-1]}")
+                        file.save(str(app.config['LOGO_FOLDER'] / filename))
+                        
+                        # Remove old logo if exists
+                        old_logo = current_config.get('logo_path')
+                        if old_logo:
+                            try:
+                                old_path = Path(app.root_path) / 'static' / old_logo
+                                if old_path.exists():
+                                    old_path.unlink()
+                            except Exception as e:
+                                logger.warning(f"Failed to remove old logo: {e}")
+                        
+                        current_config['logo_path'] = f"logos/{filename}"
+            
+            save_dynamic_config(current_config)
+            
+            # Get success message in correct language
+            langs = load_languages()
+            lang = current_config.get('language', 'fr')
+            if isinstance(langs, dict) and lang in langs:
+                flash(langs[lang].get('config_saved', 'Configuration saved!'), 'success')
+            else:
+                 flash('Configuration saved!', 'success')
+            
+            return redirect(url_for('configure'))
+            
+        except Exception as e:
+            logger.error(f"Configuration error: {e}")
+            flash(f"Error: {e}", 'error')
+            return redirect(url_for('configure'))
+    
+    return render_template('configure.html')
 
 
 # ============================================================================

@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="{{ config.language }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ text[config.language].configure_title }} - {{ text[config.language].title }}</title>
+    <style>
+        :root {
+            --primary-color: {{ config.colors.primary }};
+            --secondary-color: {{ config.colors.secondary }};
+            --accent-color: {{ config.colors.accent }};
+            --background-color: {{ config.colors.background }};
+            --text-color: {{ config.colors.text }};
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--background-color) 0%, #ffffff 100%);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+        }
+
+        h1 {
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        input[type="text"], input[type="file"], select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        input[type="color"] {
+            width: 100px;
+            height: 40px;
+            padding: 0;
+            border: none;
+            cursor: pointer;
+        }
+
+        .color-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            margin-top: 15px;
+        }
+        
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{{ text[config.language].configure_title }}</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <form action="/configure" method="POST" enctype="multipart/form-data">
+            <div class="form-group">
+                <label>{{ text[config.language].configure_language }}</label>
+                <select name="language">
+                    <option value="fr" {% if config.language == 'fr' %}selected{% endif %}>Français</option>
+                    <option value="en" {% if config.language == 'en' %}selected{% endif %}>English</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>{{ text[config.language].configure_colors }}</label>
+                <div class="color-group">
+                    <div>
+                        <label>{{ text[config.language].configure_primary }}</label>
+                        <input type="color" name="color_primary" value="{{ config.colors.primary }}">
+                    </div>
+                    <div>
+                        <label>{{ text[config.language].configure_secondary }}</label>
+                        <input type="color" name="color_secondary" value="{{ config.colors.secondary }}">
+                    </div>
+                    <div>
+                        <label>{{ text[config.language].configure_accent }}</label>
+                        <input type="color" name="color_accent" value="{{ config.colors.accent }}">
+                    </div>
+                    <div>
+                        <label>{{ text[config.language].configure_background }}</label>
+                        <input type="color" name="color_background" value="{{ config.colors.background }}">
+                    </div>
+                    <div>
+                        <label>{{ text[config.language].configure_text }}</label>
+                        <input type="color" name="color_text" value="{{ config.colors.text }}">
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>{{ text[config.language].configure_logo }} ({{ text[config.language].configure_logo_help }})</label>
+                {% if config.logo_path %}
+                <div style="margin-bottom: 10px;">
+                    <img src="{{ url_for('static', filename=config.logo_path) }}" height="50" style="vertical-align: middle;">
+                    <span>Current Logo</span>
+                </div>
+                {% endif %}
+                <input type="file" name="logo" accept=".png,.jpg,.jpeg,.gif">
+            </div>
+
+            <button type="submit" class="btn">{{ text[config.language].configure_save }}</button>
+            <a href="/" class="btn btn-secondary">{{ text[config.language].configure_back }}</a>
+        </form>
+    </div>
+</body>
+</html>

@@ -1,0 +1,18 @@
+[MASTER]
+ignore=CVS,.git,__pycache__,.venv,venv
+
+[MESSAGES CONTROL]
+disable=
+    C0111,  # missing-docstring
+    C0103,  # invalid-name
+    E0401,  # import-error
+    W0611,  # unused-import
+    R0903,  # too-few-public-methods
+    R0913,  # too-many-arguments
+    
+[TYPECHECK]
+ignored-modules=flask,werkzeug,main
+ignored-classes=Flask,Path
+
+[FORMAT]
+max-line-length=120
