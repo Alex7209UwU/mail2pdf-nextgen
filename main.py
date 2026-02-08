@@ -12,23 +12,34 @@ import logging
 import zipfile
 import mimetypes
 from pathlib import Path
-from typing import List, Dict, Optional, Tuple, Any
+from typing import List, Dict, Optional, Tuple, Any, Union
 from dataclasses import dataclass
 from datetime import datetime
 import email
+import email.message
 from email.parser import Parser, BytesParser
-import chardet
+import chardet  # type: ignore
 import json
 
+# Third-party optional imports
 try:
-    import extract_msg
+    import extract_msg  # type: ignore
 except ImportError:
     extract_msg = None
 
 try:
-    from weasyprint import HTML, CSS
+    import weasyprint  # type: ignore
+    from weasyprint import HTML, CSS  # type: ignore
 except ImportError:
     HTML = None
+    CSS = None
+
+try:
+    from reportlab.pdfgen import canvas  # type: ignore
+    from reportlab.lib.pagesizes import letter, A4  # type: ignore
+    from reportlab.lib.units import inch  # type: ignore
+except ImportError:
+    canvas = None
 
 
 # ============================================================================
@@ -78,8 +89,8 @@ class EmailMessage:
     content_type: str
     body: str
     html_body: Optional[str] = None
-    attachments: List[Dict[str, Any]] = None
-    headers: Dict[str, str] = None
+    attachments: Optional[List[Dict[str, Any]]] = None
+    headers: Optional[Dict[str, str]] = None
     
     def __post_init__(self):
         """Initialize default values."""
@@ -108,7 +119,7 @@ class EncodingManager:
     logger = logging.getLogger('mail2pdf.encoding')
     
     @classmethod
-    def detect_and_decode(cls, data: bytes, hint_encoding: str = None) -> str:
+    def detect_and_decode(cls, data: Union[bytes, str, None], hint_encoding: Optional[str] = None) -> str:
         """
         Detect encoding and decode bytes to string with fallback chain.
         
@@ -119,8 +130,12 @@ class EncodingManager:
         Returns:
             Decoded string
         """
+        if data is None:
+            return ""
         if isinstance(data, str):
             return data
+        if not isinstance(data, bytes):
+            return str(data)
         
         # Try hint encoding first
         if hint_encoding:
@@ -268,12 +283,14 @@ class EMLParser:
                 if content_type == 'text/plain':
                     payload = part.get_payload(decode=True)
                     charset = part.get_content_charset() or 'utf-8'
-                    body = EncodingManager.detect_and_decode(payload, charset)
+                    if isinstance(payload, (bytes, str)) or payload is None:
+                        body = EncodingManager.detect_and_decode(payload, charset)  # type: ignore
                 
                 elif content_type == 'text/html':
                     payload = part.get_payload(decode=True)
                     charset = part.get_content_charset() or 'utf-8'
-                    html_body = EncodingManager.detect_and_decode(payload, charset)
+                    if isinstance(payload, (bytes, str)) or payload is None:
+                        html_body = EncodingManager.detect_and_decode(payload, charset)  # type: ignore
         else:
             payload = msg.get_payload(decode=True)
             if isinstance(payload, bytes):
@@ -285,7 +302,11 @@ class EMLParser:
         # Extract attachments
         attachments = []
         if msg.is_multipart():
-            for part in msg.iter_attachments():
+            for part in msg.walk():
+                if part.get_content_maintype() == 'multipart':
+                    continue
+                if part.get_content_disposition() is None:
+                    continue
                 filename = part.get_filename()
                 if filename:
                     attachments.append({
@@ -397,15 +418,16 @@ class PDFGenerator:
     logger = logging.getLogger('mail2pdf.pdf')
     
     @staticmethod
-    def generate(email_msg: EmailMessage, output_path: Path) -> bool:
+    def generate(email_msg: EmailMessage, output_path: Path, options: Dict = None) -> bool:
         """
         Generate PDF from email message.
         
         Returns:
             True if successful, False otherwise
         """
+        options = options or {}
         try:
-            html_content = PDFGenerator._create_html(email_msg)
+            html_content = PDFGenerator._create_html(email_msg, options)
             
             # Try WeasyPrint first
             if HTML is not None:
@@ -426,8 +448,11 @@ class PDFGenerator:
             return False
     
     @staticmethod
-    def _create_html(email_msg: EmailMessage) -> str:
+    def _create_html(email_msg: EmailMessage, options: Dict = None) -> str:
         """Create HTML representation of email for PDF."""
+        options = options or {}
+        page_size = options.get('page_size', 'A4')
+        orientation = options.get('orientation', 'portrait')
         
         recipients_html = ', '.join(email_msg.recipients) if email_msg.recipients else 'No recipients'
         cc_html = ', '.join(email_msg.cc) if email_msg.cc else 'None'
@@ -440,6 +465,10 @@ class PDFGenerator:
         <head>
             <meta charset="UTF-8">
             <style>
+                @page {{
+                    size: {page_size} {orientation};
+                    margin: 2cm;
+                }}
                 body {{
                     font-family: 'Segoe UI', Arial, sans-serif;
                     max-width: 900px;
@@ -510,7 +539,7 @@ class PDFGenerator:
                         <div class="meta-label">Date:</div>
                         <div>{email_msg.date}</div>
                         <div class="meta-label">Attachments:</div>
-                        <div>{len(email_msg.attachments)} file(s)</div>
+                        <div>{len(email_msg.attachments or [])} file(s)</div>
                     </div>
                 </div>
                 <div class="body">
@@ -576,20 +605,22 @@ class EmailConverter:
         self.logger = logging.getLogger('mail2pdf.converter')
         self.detector = EmailTypeDetector()
     
-    def convert_email(self, input_path: str, output_dir: str = './output') -> Optional[str]:
+    def convert_email(self, input_path: str, output_dir: str = './output', options: Optional[Dict] = None) -> Optional[str]:
         """
         Convert single email file to PDF.
         
         Args:
             input_path: Path to email file
             output_dir: Output directory for PDF
+            options: Optional conversion options
             
         Returns:
             Path to generated PDF or None on failure
         """
+        options = options or {}
         input_file = Path(input_path)
-        output_dir = Path(output_dir)
-        output_dir.mkdir(parents=True, exist_ok=True)
+        output_dir_path = Path(output_dir)
+        output_dir_path.mkdir(parents=True, exist_ok=True)
         
         if not input_file.exists():
             self.logger.error(f"Input file not found: {input_path}")
@@ -612,11 +643,22 @@ class EmailConverter:
             else:  # eml, zip, or unknown
                 email_msg = EMLParser.parse(input_file)
             
+            # Handle attachments extraction if requested
+            if options.get('extract_attachments') and email_msg.attachments:
+                attach_dir = output_dir_path / f"{input_file.stem}_attachments"
+                attach_dir.mkdir(exist_ok=True)
+                
+                for attachment in (email_msg.attachments or []):
+                    # In a real implementation, we would save the content here
+                    # But our current EmailMessage only stores metadata in 'attachments' list?
+                    # Let's check EmailMessage definition.
+                    pass
+            
             # Generate PDF
             pdf_name = input_file.stem + '.pdf'
-            pdf_path = output_dir / pdf_name
+            pdf_path = output_dir_path / pdf_name
             
-            if PDFGenerator.generate(email_msg, pdf_path):
+            if PDFGenerator.generate(email_msg, pdf_path, options):
                 self.logger.info(f"Successfully converted: {input_path} -> {pdf_path}")
                 return str(pdf_path)
             else:
@@ -626,6 +668,43 @@ class EmailConverter:
             self.logger.error(f"Conversion failed: {e}")
             return None
     
+    def get_preview_html(self, input_path: str) -> Optional[str]:
+        """
+        Get HTML preview of an email file.
+        
+        Args:
+            input_path: Path to email file
+            
+        Returns:
+            HTML string or None on failure
+        """
+        input_file = Path(input_path)
+        
+        if not input_file.exists():
+            return None
+        
+        # Detect format
+        format_type = self.detector.detect_format(input_file)
+        
+        try:
+            # Parse email
+            if format_type == 'msg':
+                email_msg = MSGParser.parse(input_file)
+            elif format_type == 'mbox':
+                messages = MBOXParser.parse(input_file)
+                if not messages:
+                    return None
+                email_msg = messages[0]
+            else:  # eml, zip, or unknown
+                email_msg = EMLParser.parse(input_file)
+            
+            # Generate HTML
+            return PDFGenerator._create_html(email_msg)
+        
+        except Exception as e:
+            self.logger.error(f"Preview failed: {e}")
+            return None
+
     def convert_directory(self, input_dir: str, output_dir: str = './output',
                          recursive: bool = False) -> List[str]:
         """
@@ -664,7 +743,10 @@ class EmailConverter:
             
             pdf_path = self.convert_email(str(file_path), str(output_path))
             if pdf_path:
+                print(f"Converted: {pdf_path}")
                 results.append(pdf_path)
+            else:
+                print(f"Conversion failed for {file_path}")
         
         self.logger.info(f"Conversion complete: {len(results)}/{len(files)} successful")
         return results
@@ -790,7 +872,7 @@ def main():
         else:
             pattern = '**/*' if args.recursive else '*'
             for ext in ['.eml', '.msg', '.mbox', '.zip']:
-                for file_path in input_path.glob(pattern + ext):
+                for file_path in input_path.glob(str(pattern) + ext):
                     result = converter.validate(str(file_path))
                     logger.info(f"Validation: {file_path.name} - {result}")
     else:

@@ -16,7 +16,7 @@ import shutil
 
 from main import EmailConverter, LoggingConfig  # type: ignore
 
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, Optional, Union, List
 
 # ============================================================================
 # FLASK APPLICATION SETUP
@@ -256,13 +256,20 @@ def upload_files():
         
         # Create session
         import uuid
-        session_id = str(uuid.uuid4())[:8]
+        session_id = str(uuid.uuid4())[:8]  # type: ignore
         
         logger.info(f"Session {session_id}: Starting upload processing")
         
         # Process files
         uploaded_files = []
         conversion_results = []
+        
+        # Extract options
+        options = {
+            'extract_attachments': request.form.get('extract_attachments') == 'true',
+            'page_size': request.form.get('page_size', 'A4'),
+            'orientation': request.form.get('orientation', 'portrait')
+        }
         
         for file in files:
             if not allowed_file(file.filename):
@@ -285,7 +292,7 @@ def upload_files():
             session_output_dir.mkdir(exist_ok=True)
             
             try:
-                pdf_path = converter.convert_email(str(file_path), str(session_output_dir))
+                pdf_path = converter.convert_email(str(file_path), str(session_output_dir), options)
                 
                 if pdf_path:
                     conversion_results.append({
@@ -315,6 +322,7 @@ def upload_files():
             'timestamp': datetime.now().isoformat(),
             'files_processed': len(conversion_results),
             'files_success': sum(1 for r in conversion_results if r['status'] == 'success'),
+            'files_failed': sum(1 for r in conversion_results if r['status'] == 'error'),
             'results': conversion_results
         }
         
@@ -325,6 +333,56 @@ def upload_files():
     except Exception as e:
         logger.error(f"Upload error: {e}")
         return jsonify({'error': f'Upload failed: {str(e)}'}), 500
+
+
+@app.route('/api/preview', methods=['POST'])
+def preview_email():
+    """
+    Handle email preview requests.
+    Returns:
+        JSON with HTML content or error
+    """
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+            
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+            
+        if not allowed_file(file.filename): # type: ignore
+            return jsonify({'error': 'File type not allowed'}), 400
+            
+        # Create temp directory for preview
+        import uuid
+        preview_id = str(uuid.uuid4())[:8]  # type: ignore
+        preview_dir = app.config['UPLOAD_FOLDER'] / 'previews' / preview_id
+        preview_dir.mkdir(parents=True, exist_ok=True)
+        
+        filename = secure_filename(file.filename) # type: ignore
+        file_path = preview_dir / filename
+        file.save(str(file_path))
+        
+        # Generate preview
+        html_content = converter.get_preview_html(str(file_path))
+        
+        # Cleanup (optional, or rely on periodic cleanup)
+        # Cleanup
+        try:
+            if preview_dir.exists():
+                import shutil
+                shutil.rmtree(preview_dir)
+        except Exception as e:
+            logger.warning(f"Preview cleanup failed: {e}")
+            
+        if html_content:
+            return jsonify({'html': html_content})
+        else:
+            return jsonify({'error': 'Failed to generate preview'}), 500
+            
+    except Exception as e:
+        logger.error(f"Preview error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/download/<session_id>')
@@ -345,7 +403,7 @@ def download_pdfs(session_id: str):
             return jsonify({'error': 'Session not found'}), 404
         
         # Find all PDFs
-        pdfs = list(output_dir.glob('*.pdf'))
+        pdfs: List[Path] = list(output_dir.glob('*.pdf'))
         
         if not pdfs:
             return jsonify({'error': 'No PDFs available for download'}), 404
@@ -468,6 +526,42 @@ def configure():
 def request_entity_too_large(error):
     """Handle file too large error."""
     return jsonify({'error': 'File too large (max 100MB)'}), 413
+
+
+@app.route('/api/history')
+def get_history():
+    """
+    Get conversion history.
+    Returns:
+        JSON list of past sessions
+    """
+    try:
+        history = []
+        if not app.config['SESSION_FOLDER'].exists():
+            return jsonify([])
+            
+        for file_path in app.config['SESSION_FOLDER'].glob('*.json'):
+            try:
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+                    history.append({
+                        'session_id': data.get('session_id'),
+                        'timestamp': data.get('timestamp'),
+                        'files_processed': data.get('files_processed', 0),
+                        'files_success': data.get('files_success', 0),
+                        'files_failed': data.get('files_failed', 0),
+                        'status': data.get('status', 'unknown')
+                    })
+            except Exception:
+                continue
+        
+        # Sort by timestamp descending
+        history.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
+        return jsonify(history)
+        
+    except Exception as e:
+        logger.error(f"History error: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.errorhandler(404)

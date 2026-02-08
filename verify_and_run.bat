@@ -49,7 +49,18 @@ if %ERRORLEVEL% NEQ 0 (
     pause
     exit /b 1
 ) else (
-    echo [SUCCESS] Tests passed!
+    echo [SUCCESS] UI Config Tests passed!
+)
+
+echo.
+echo [1.5/2] Running Comprehensive Tests (tests/test_full_suite.py)...
+%PYTHON_CMD% tests/test_full_suite.py
+if %ERRORLEVEL% NEQ 0 (
+    echo [ERROR] Comprehensive Tests failed!
+    pause
+    exit /b 1
+) else (
+    echo [SUCCESS] Comprehensive Tests passed!
 )
 
 echo.
