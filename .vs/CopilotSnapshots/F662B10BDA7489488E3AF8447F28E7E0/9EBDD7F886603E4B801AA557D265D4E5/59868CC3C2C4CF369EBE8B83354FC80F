@@ -1,0 +1,917 @@
+﻿#!/usr/bin/env python3
+"""
+Mail2PDF NextGen - Advanced Email to PDF Converter
+Ville de Fontaine 38600, France
+License: MIT
+"""
+
+import os
+import sys
+import argparse
+import logging
+import zipfile
+import mimetypes
+from pathlib import Path
+from typing import List, Dict, Optional, Tuple, Any, Union
+from dataclasses import dataclass
+from datetime import datetime
+import email
+import email.message
+from email.parser import Parser, BytesParser
+
+# Third-party optional imports
+try:
+    import extract_msg  # type: ignore
+except ImportError:
+    extract_msg = None
+
+try:
+    import weasyprint  # type: ignore
+    from weasyprint import HTML, CSS  # type: ignore
+except ImportError:
+    HTML = None
+    CSS = None
+
+try:
+    from reportlab.pdfgen import canvas  # type: ignore
+    from reportlab.lib.pagesizes import letter, A4  # type: ignore
+    from reportlab.lib.units import inch  # type: ignore
+except ImportError:
+    canvas = None
+
+# Optional chardet
+try:
+    import chardet  # type: ignore
+except ImportError:
+    chardet = None
+
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+
+class LoggingConfig:
+    """Configure application logging with structured format."""
+    
+    @staticmethod
+    def setup(verbose: bool = False) -> logging.Logger:
+        """Setup logging with optional verbose mode."""
+        level = logging.DEBUG if verbose else logging.INFO
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        
+        logger = logging.getLogger('mail2pdf')
+        logger.setLevel(level)
+        
+        # Console handler
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(level)
+        handler.setFormatter(formatter)
+        
+        if not logger.handlers:
+            logger.addHandler(handler)
+        
+        return logger
+
+
+# ============================================================================
+# DATA CLASSES
+# ============================================================================
+
+@dataclass
+class EmailMessage:
+    """Represents a parsed email message with metadata and content."""
+    
+    subject: str
+    sender: str
+    recipients: List[str]
+    cc: List[str]
+    bcc: List[str]
+    date: str
+    content_type: str
+    body: str
+    html_body: Optional[str] = None
+    attachments: Optional[List[Dict[str, Any]]] = None
+    headers: Optional[Dict[str, str]] = None
+    
+    def __post_init__(self):
+        """Initialize default values."""
+        if self.attachments is None:
+            self.attachments = []
+        if self.headers is None:
+            self.headers = {}
+
+
+# ============================================================================
+# ENCODING MANAGEMENT
+# ============================================================================
+
+class EncodingManager:
+    """Handle email encoding detection and conversion with 6-level fallback."""
+    
+    FALLBACK_ENCODINGS = [
+        'utf-8',
+        'iso-8859-1',
+        'windows-1252',
+        'utf-16',
+        'ascii',
+        'utf-8'  # Final fallback with replacement
+    ]
+    
+    logger = logging.getLogger('mail2pdf.encoding')
+    
+    @classmethod
+    def detect_and_decode(cls, data: Union[bytes, str, None], hint_encoding: Optional[str] = None) -> str:
+        """
+        Detect encoding and decode bytes to string with fallback chain.
+        
+        Args:
+            data: Raw bytes to decode
+            hint_encoding: Optional encoding hint from email headers
+            
+        Returns:
+            Decoded string
+        """
+        if data is None:
+            return ""
+        if isinstance(data, str):
+            return data
+        if not isinstance(data, bytes):
+            return str(data)
+        
+        # Try hint encoding first
+        if hint_encoding:
+            try:
+                return data.decode(hint_encoding)
+            except (UnicodeDecodeError, LookupError):
+                cls.logger.debug(f"Hint encoding {hint_encoding} failed")
+        
+        # Try chardet detection when available
+        if chardet is not None:
+            try:
+                detected = chardet.detect(data)
+                if detected and detected.get('encoding'):
+                    try:
+                        return data.decode(detected['encoding'])
+                    except (UnicodeDecodeError, LookupError):
+                        pass
+            except Exception as e:
+                cls.logger.debug(f"Chardet detection failed: {e}")
+        else:
+            cls.logger.debug("chardet not available, skipping detection")
+        
+        # Fallback chain
+        for encoding in cls.FALLBACK_ENCODINGS[:-1]:
+            try:
+                return data.decode(encoding)
+            except (UnicodeDecodeError, LookupError):
+                cls.logger.debug(f"Encoding {encoding} failed, trying next")
+        
+        # Final fallback with replacement
+        return data.decode('utf-8', errors='replace')
+    
+    @classmethod
+    def get_best_encoding(cls, data: bytes) -> str:
+        """Get the best encoding for given bytes."""
+        try:
+            if chardet is not None:
+                detected = chardet.detect(data)
+                if detected and detected.get('encoding'):
+                    return detected['encoding']
+        except Exception:
+            pass
+        return 'utf-8'
+
+
+# ============================================================================
+# EMAIL TYPE DETECTION
+# ============================================================================
+
+class EmailTypeDetector:
+    """Detect email file format and type."""
+    
+    logger = logging.getLogger('mail2pdf.detector')
+    
+    @staticmethod
+    def detect_format(file_path: Path) -> str:
+        """
+        Detect email format from file.
+        
+        Returns:
+            One of: 'eml', 'msg', 'mbox', 'thunderbird', 'zip', 'unknown'
+        """
+        suffix = file_path.suffix.lower()
+        
+        # Check by extension first
+        if suffix == '.eml':
+            return 'eml'
+        elif suffix == '.msg':
+            return 'msg'
+        elif suffix == '.mbox':
+            return 'mbox'
+        elif suffix == '.zip':
+            return 'zip'
+        
+        # Check by content
+        try:
+            with open(file_path, 'rb') as f:
+                header = f.read(512)
+            
+            # ZIP signature
+            if header.startswith(b'PK\x03\x04'):
+                return 'zip'
+            
+            # MSG (OLE2) signature
+            if header.startswith(b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'):
+                return 'msg'
+            
+            # EML/MBOX check (should have From: or Return-Path:)
+            try:
+                text = header.decode('utf-8', errors='ignore')
+                if 'From:' in text or 'Return-Path:' in text:
+                    return 'eml'
+            except Exception:
+                pass
+            
+            return 'eml'  # Default to EML for raw text
+        
+        except Exception as e:
+            EmailTypeDetector.logger.warning(f"Error detecting format for {file_path}: {e}")
+            return 'eml'
+
+
+# ============================================================================
+# EMAIL PARSERS
+# ============================================================================
+
+class EMLParser:
+    """Parse RFC 2822 EML format emails."""
+    
+    logger = logging.getLogger('mail2pdf.eml')
+    
+    @staticmethod
+    def parse(file_path: Path) -> EmailMessage:
+        """Parse EML file and return EmailMessage."""
+        try:
+            with open(file_path, 'rb') as f:
+                msg = BytesParser().parse(f)
+            
+            return EMLParser._extract_message(msg)
+        
+        except Exception as e:
+            EMLParser.logger.error(f"Error parsing EML {file_path}: {e}")
+            raise
+    
+    @staticmethod
+    def _extract_message(msg: email.message.Message) -> EmailMessage:
+        """Extract EmailMessage from email.Message object."""
+        
+        # Extract headers
+        subject = msg.get('Subject', '(No Subject)')
+        subject = EncodingManager.detect_and_decode(
+            subject.encode('utf-8') if isinstance(subject, str) else subject
+        )
+        
+        sender = msg.get('From', '(Unknown)')
+        recipients = [a.strip() for a in msg.get('To', '').split(',') if a.strip()]
+        cc = [a.strip() for a in msg.get('Cc', '').split(',') if a.strip()]
+        bcc = [a.strip() for a in msg.get('Bcc', '').split(',') if a.strip()]
+        date = msg.get('Date', datetime.now().isoformat())
+        
+        # Extract body
+        body = ''
+        html_body = None
+        
+        if msg.is_multipart():
+            for part in msg.walk():
+                content_type = part.get_content_type()
+                
+                if content_type == 'text/plain':
+                    payload = part.get_payload(decode=True)
+                    charset = part.get_content_charset() or 'utf-8'
+                    if isinstance(payload, (bytes, str)) or payload is None:
+                        body = EncodingManager.detect_and_decode(payload, charset)  # type: ignore
+                
+                elif content_type == 'text/html':
+                    payload = part.get_payload(decode=True)
+                    charset = part.get_content_charset() or 'utf-8'
+                    if isinstance(payload, (bytes, str)) or payload is None:
+                        html_body = EncodingManager.detect_and_decode(payload, charset)  # type: ignore
+        else:
+            payload = msg.get_payload(decode=True)
+            if isinstance(payload, bytes):
+                charset = msg.get_content_charset() or 'utf-8'
+                body = EncodingManager.detect_and_decode(payload, charset)
+            else:
+                body = str(payload)
+        
+        # Extract attachments
+        attachments = []
+        if msg.is_multipart():
+            for part in msg.walk():
+                if part.get_content_maintype() == 'multipart':
+                    continue
+                if part.get_content_disposition() is None:
+                    continue
+                filename = part.get_filename()
+                if filename:
+                    payload_bytes = part.get_payload(decode=True) or b''
+                    try:
+                        size = len(payload_bytes)
+                    except Exception:
+                        size = 0
+                    attachments.append({
+                        'filename': filename,
+                        'content_type': part.get_content_type(),
+                        'size': size
+                    })
+        
+        return EmailMessage(
+            subject=subject,
+            sender=sender,
+            recipients=recipients,
+            cc=cc,
+            bcc=bcc,
+            date=date,
+            content_type='text/html' if html_body else 'text/plain',
+            body=html_body or body,
+            html_body=html_body,
+            attachments=attachments,
+            headers={k: v for k, v in msg.items()}
+        )
+
+
+class MSGParser:
+    """Parse Outlook MSG format emails."""
+    
+    logger = logging.getLogger('mail2pdf.msg')
+    
+    @staticmethod
+    def parse(file_path: Path) -> EmailMessage:
+        """Parse MSG file and return EmailMessage."""
+        if extract_msg is None:
+            raise ImportError("extract-msg module required for MSG parsing")
+        
+        try:
+            msg = extract_msg.Message(str(file_path))
+            
+            subject = msg.subject or '(No Subject)'
+            sender = msg.sender or '(Unknown)'
+            # msg.to/cc can be strings with separators ; or ,
+            def _split_recipients(value):
+                if not value:
+                    return []
+                import re
+                return [v.strip() for v in re.split(r'[;,]', value) if v.strip()]
+            
+            recipients = _split_recipients(getattr(msg, 'to', None) or getattr(msg, 'to_','') or '')
+            cc = _split_recipients(getattr(msg, 'cc', None) or '')
+            # date may be a datetime or string
+            date_attr = getattr(msg, 'date', None)
+            if date_attr:
+                try:
+                    date = date_attr.isoformat() if hasattr(date_attr, 'isoformat') else str(date_attr)
+                except Exception:
+                    date = str(date_attr)
+            else:
+                date = datetime.now().isoformat()
+            
+            body = msg.body or ''
+            
+            return EmailMessage(
+                subject=subject,
+                sender=sender,
+                recipients=[r for r in recipients if r],
+                cc=[c for c in cc if c],
+                bcc=[],
+                date=date,
+                content_type='text/plain',
+                body=body,
+                attachments=[]
+            )
+        
+        except Exception as e:
+            MSGParser.logger.error(f"Error parsing MSG {file_path}: {e}")
+            raise
+
+
+class MBOXParser:
+    """Parse MBOX format emails (Thunderbird/Unix)."""
+    
+    logger = logging.getLogger('mail2pdf.mbox')
+    
+    @staticmethod
+    def parse(file_path: Path) -> List[EmailMessage]:
+        """Parse MBOX file and return list of EmailMessages."""
+        messages = []
+        
+        try:
+            with open(file_path, 'rb') as f:
+                content = f.read()
+            
+            # Split by "From " line (MBOX format)
+            text = EncodingManager.detect_and_decode(content)
+            entries = text.split('\nFrom ')
+            
+            for entry in entries:
+                if not entry.strip():
+                    continue
+                
+                # Reconstruct RFC 2822 message
+                if not entry.startswith('From '):
+                    entry = 'From ' + entry
+                
+                try:
+                    msg = Parser().parsestr(entry)
+                    messages.append(EMLParser._extract_message(msg))
+                except Exception as e:
+                    MBOXParser.logger.warning(f"Failed to parse MBOX entry: {e}")
+        
+        except Exception as e:
+            MBOXParser.logger.error(f"Error parsing MBOX {file_path}: {e}")
+            raise
+        
+        return messages
+
+
+# ============================================================================
+# PDF GENERATION
+# ============================================================================
+
+class PDFGenerator:
+    """Generate PDF from email content with WeasyPrint and fallback."""
+    
+    logger = logging.getLogger('mail2pdf.pdf')
+    
+    @staticmethod
+    def generate(email_msg: EmailMessage, output_path: Path, options: Dict = None) -> bool:
+        """
+        Generate PDF from email message.
+        
+        Returns:
+            True if successful, False otherwise
+        """
+        options = options or {}
+        try:
+            html_content = PDFGenerator._create_html(email_msg, options)
+            
+            # Try WeasyPrint first
+            if HTML is not None:
+                try:
+                    HTML(string=html_content).write_pdf(str(output_path))
+                    PDFGenerator.logger.info(f"PDF generated: {output_path}")
+                    return True
+                except Exception as e:
+                    PDFGenerator.logger.warning(f"WeasyPrint failed: {e}, trying fallback")
+            
+            # Fallback: basic PDF generation (simplified)
+            PDFGenerator.logger.warning("WeasyPrint not available, using text-based fallback")
+            PDFGenerator._generate_text_pdf(html_content, output_path)
+            return True
+        
+        except Exception as e:
+            PDFGenerator.logger.error(f"PDF generation failed for {output_path}: {e}")
+            return False
+    
+    @staticmethod
+    def _create_html(email_msg: EmailMessage, options: Dict = None) -> str:
+        """Create HTML representation of email for PDF."""
+        options = options or {}
+        page_size = options.get('page_size', 'A4')
+        orientation = options.get('orientation', 'portrait')
+        
+        recipients_html = ', '.join(email_msg.recipients) if email_msg.recipients else 'No recipients'
+        cc_html = ', '.join(email_msg.cc) if email_msg.cc else 'None'
+        
+        body_html = email_msg.html_body or f"<pre>{email_msg.body}</pre>"
+        
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @page {{
+                    size: {page_size} {orientation};
+                    margin: 2cm;
+                }}
+                body {{
+                    font-family: 'Segoe UI', Arial, sans-serif;
+                    max-width: 900px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    background-color: #f5f5f5;
+                    color: #333;
+                }}
+                .email-container {{
+                    background-color: white;
+                    border: 1px solid #ddd;
+                    border-radius: 5px;
+                    padding: 20px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }}
+                .header {{
+                    border-bottom: 2px solid #0088CC;
+                    padding-bottom: 15px;
+                    margin-bottom: 15px;
+                }}
+                .header-title {{
+                    color: #0088CC;
+                    font-size: 18px;
+                    font-weight: bold;
+                    margin: 0 0 10px 0;
+                }}
+                .header-meta {{
+                    display: grid;
+                    grid-template-columns: 100px 1fr;
+                    gap: 10px;
+                    font-size: 13px;
+                    color: #666;
+                }}
+                .meta-label {{
+                    font-weight: bold;
+                    color: #0088CC;
+                }}
+                .body {{
+                    margin-top: 15px;
+                    line-height: 1.6;
+                }}
+                .footer {{
+                    margin-top: 20px;
+                    border-top: 1px solid #ddd;
+                    padding-top: 10px;
+                    font-size: 11px;
+                    color: #999;
+                }}
+                pre {{
+                    background-color: #f9f9f9;
+                    padding: 10px;
+                    border-radius: 3px;
+                    overflow-x: auto;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="email-container">
+                <div class="header">
+                    <div class="header-title">{email_msg.subject}</div>
+                    <div class="header-meta">
+                        <div class="meta-label">From:</div>
+                        <div>{email_msg.sender}</div>
+                        <div class="meta-label">To:</div>
+                        <div>{recipients_html}</div>
+                        <div class="meta-label">CC:</div>
+                        <div>{cc_html}</div>
+                        <div class="meta-label">Date:</div>
+                        <div>{email_msg.date}</div>
+                        <div class="meta-label">Attachments:</div>
+                        <div>{len(email_msg.attachments or [])} file(s)</div>
+                    </div>
+                </div>
+                <div class="body">
+                    {body_html}
+                </div>
+                <div class="footer">
+                    Generated by Mail2PDF NextGen | Ville de Fontaine 38600
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+        
+        return html
+    
+    @staticmethod
+    def _generate_text_pdf(html_content: str, output_path: Path) -> None:
+        """Fallback: simple text-to-PDF conversion."""
+        try:
+            from reportlab.pdfgen import canvas
+            from reportlab.lib.pagesizes import letter
+            from reportlab.lib.units import inch
+            
+            # Create simple text content from HTML
+            import re
+            text_content = re.sub('<[^<]+?>', '', html_content)
+            
+            c = canvas.Canvas(str(output_path), pagesize=letter)
+            width, height = letter
+            
+            x = inch
+            y = height - inch
+            
+            for line in text_content.split('\n')[:100]:  # Limit to first 100 lines
+                if y < inch:
+                    c.showPage()
+                    y = height - inch
+                c.drawString(x, y, line[:100])  # Limit line length
+                y -= 12
+            
+            c.save()
+        
+        except ImportError:
+            # No fallback available
+            raise Exception("WeasyPrint and ReportLab not available")
+
+
+# ============================================================================
+# EMAIL CONVERTER - MAIN CLASS
+# ============================================================================
+
+class EmailConverter:
+    """Main email to PDF converter with multi-format support."""
+    
+    def __init__(self, config: Dict = None):
+        """
+        Initialize converter with optional configuration.
+        
+        Args:
+            config: Optional configuration dictionary
+        """
+        self.config = config or {}
+        self.logger = logging.getLogger('mail2pdf.converter')
+        self.detector = EmailTypeDetector()
+    
+    def convert_email(self, input_path: str, output_dir: str = './output', options: Optional[Dict] = None) -> Optional[str]:
+        """
+        Convert single email file to PDF.
+        
+        Args:
+            input_path: Path to email file
+            output_dir: Output directory for PDF
+            options: Optional conversion options
+            
+        Returns:
+            Path to generated PDF or None on failure
+        """
+        options = options or {}
+        input_file = Path(input_path)
+        output_dir_path = Path(output_dir)
+        output_dir_path.mkdir(parents=True, exist_ok=True)
+        
+        if not input_file.exists():
+            self.logger.error(f"Input file not found: {input_path}")
+            return None
+        
+        # Detect format
+        format_type = self.detector.detect_format(input_file)
+        self.logger.info(f"Detected format: {format_type}")
+        
+        try:
+            # Parse email
+            if format_type == 'msg':
+                email_msg = MSGParser.parse(input_file)
+            elif format_type == 'mbox':
+                messages = MBOXParser.parse(input_file)
+                if not messages:
+                    self.logger.error("No messages found in MBOX file")
+                    return None
+                email_msg = messages[0]
+            else:  # eml, zip, or unknown
+                email_msg = EMLParser.parse(input_file)
+            
+            # Handle attachments extraction if requested
+            if options.get('extract_attachments') and email_msg.attachments:
+                attach_dir = output_dir_path / f"{input_file.stem}_attachments"
+                attach_dir.mkdir(exist_ok=True)
+                
+                for attachment in (email_msg.attachments or []):
+                    # In a real implementation, we would save the content here
+                    # But our current EmailMessage only stores metadata in 'attachments' list?
+                    # Let's check EmailMessage definition.
+                    pass
+            
+            # Generate PDF
+            pdf_name = input_file.stem + '.pdf'
+            pdf_path = output_dir_path / pdf_name
+            
+            if PDFGenerator.generate(email_msg, pdf_path, options):
+                self.logger.info(f"Successfully converted: {input_path} -> {pdf_path}")
+                return str(pdf_path)
+            else:
+                return None
+        
+        except Exception as e:
+            self.logger.error(f"Conversion failed: {e}")
+            return None
+    
+    def get_preview_html(self, input_path: str) -> Optional[str]:
+        """
+        Get HTML preview of an email file.
+        
+        Args:
+            input_path: Path to email file
+            
+        Returns:
+            HTML string or None on failure
+        """
+        input_file = Path(input_path)
+        
+        if not input_file.exists():
+            return None
+        
+        # Detect format
+        format_type = self.detector.detect_format(input_file)
+        
+        try:
+            # Parse email
+            if format_type == 'msg':
+                email_msg = MSGParser.parse(input_file)
+            elif format_type == 'mbox':
+                messages = MBOXParser.parse(input_file)
+                if not messages:
+                    return None
+                email_msg = messages[0]
+            else:  # eml, zip, or unknown
+                email_msg = EMLParser.parse(input_file)
+            
+            # Generate HTML
+            return PDFGenerator._create_html(email_msg)
+        
+        except Exception as e:
+            self.logger.error(f"Preview failed: {e}")
+            return None
+
+    def convert_directory(self, input_dir: str, output_dir: str = './output',
+                         recursive: bool = False) -> List[str]:
+        """
+        Convert all emails in directory to PDFs.
+        
+        Args:
+            input_dir: Input directory containing email files
+            output_dir: Output directory for PDFs
+            recursive: Whether to scan subdirectories
+            
+        Returns:
+            List of successfully converted PDF paths
+        """
+        input_path = Path(input_dir)
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        if not input_path.is_dir():
+            self.logger.error(f"Input directory not found: {input_dir}")
+            return []
+        
+        results = []
+        pattern = '**/*' if recursive else '*'
+        
+        # Find all email files
+        email_extensions = ['.eml', '.msg', '.mbox', '.zip']
+        files = []
+        
+        for ext in email_extensions:
+            files.extend(input_path.glob(pattern + ext))
+        
+        self.logger.info(f"Found {len(files)} email files to process")
+        
+        for idx, file_path in enumerate(files, 1):
+            self.logger.info(f"Processing {idx}/{len(files)}: {file_path}")
+            
+            pdf_path = self.convert_email(str(file_path), str(output_path))
+            if pdf_path:
+                print(f"Converted: {pdf_path}")
+                results.append(pdf_path)
+            else:
+                print(f"Conversion failed for {file_path}")
+        
+        self.logger.info(f"Conversion complete: {len(results)}/{len(files)} successful")
+        return results
+    
+    def validate(self, input_path: str) -> Dict[str, Any]:
+        """
+        Validate email file without conversion.
+        
+        Returns:
+            Dictionary with validation results
+        """
+        input_file = Path(input_path)
+        
+        results = {
+            'file': str(input_path),
+            'exists': input_file.exists(),
+            'format': None,
+            'size': 0,
+            'parseable': False,
+            'errors': []
+        }
+        
+        if not results['exists']:
+            results['errors'].append("File not found")
+            return results
+        
+        results['size'] = input_file.stat().st_size
+        results['format'] = self.detector.detect_format(input_file)
+        
+        try:
+            if results['format'] == 'msg':
+                MSGParser.parse(input_file)
+            elif results['format'] == 'mbox':
+                messages = MBOXParser.parse(input_file)
+                results['messages'] = len(messages)
+            else:
+                EMLParser.parse(input_file)
+            
+            results['parseable'] = True
+        except Exception as e:
+            results['errors'].append(str(e))
+        
+        return results
+
+
+# ============================================================================
+# CLI INTERFACE
+# ============================================================================
+
+def create_argument_parser() -> argparse.ArgumentParser:
+    """Create and return argument parser for CLI."""
+    
+    parser = argparse.ArgumentParser(
+        description='Mail2PDF NextGen - Advanced Email to PDF Converter',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python main.py -i email.eml -o ./pdfs
+  python main.py -i ./emails -o ./pdfs -r -v
+  python main.py -i email.msg --validate
+  python main.py -i test.mbox -o ./out --config custom.py
+        """
+    )
+    
+    parser.add_argument(
+        '-i', '--input',
+        required=True,
+        help='Input email file or directory'
+    )
+    parser.add_argument(
+        '-o', '--output',
+        default='./output',
+        help='Output directory for PDFs (default: ./output)'
+    )
+    parser.add_argument(
+        '-r', '--recursive',
+        action='store_true',
+        help='Scan directories recursively'
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        action='store_true',
+        help='Enable verbose/debug logging'
+    )
+    parser.add_argument(
+        '--config',
+        help='Optional configuration file'
+    )
+    parser.add_argument(
+        '--validate',
+        action='store_true',
+        help='Validate files without conversion'
+    )
+    
+    return parser
+
+
+def main():
+    """Main CLI entry point."""
+    
+    parser = create_argument_parser()
+    args = parser.parse_args()
+    
+    # Setup logging
+    logger = LoggingConfig.setup(args.verbose)
+    
+    logger.info("Mail2PDF NextGen - Starting")
+    logger.info(f"Input: {args.input}")
+    logger.info(f"Output: {args.output}")
+    
+    # Create converter
+    converter = EmailConverter()
+    
+    input_path = Path(args.input)
+    
+    if args.validate:
+        # Validation mode
+        logger.info("Running in validation mode...")
+        
+        if input_path.is_file():
+            result = converter.validate(str(input_path))
+            logger.info(f"Validation result: {json.dumps(result, indent=2)}")
+        else:
+            pattern = '**/*' if args.recursive else '*'
+            for ext in ['.eml', '.msg', '.mbox', '.zip']:
+                for file_path in input_path.glob(str(pattern) + ext):
+                    result = converter.validate(str(file_path))
+                    logger.info(f"Validation: {file_path.name} - {result}")
+    else:
+        # Conversion mode
+        if input_path.is_file():
+            converter.convert_email(str(input_path), args.output)
+        else:
+            converter.convert_directory(str(input_path), args.output, args.recursive)
+    
+    logger.info("Mail2PDF NextGen - Complete")
+
+
+if __name__ == '__main__':
+    main()

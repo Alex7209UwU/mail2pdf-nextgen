@@ -18,7 +18,6 @@ from datetime import datetime
 import email
 import email.message
 from email.parser import Parser, BytesParser
-import chardet  # type: ignore
 import json
 
 # Third-party optional imports
@@ -40,6 +39,12 @@ try:
     from reportlab.lib.units import inch  # type: ignore
 except ImportError:
     canvas = None
+
+# Optional chardet
+try:
+    import chardet  # type: ignore
+except ImportError:
+    chardet = None
 
 
 # ============================================================================
@@ -144,16 +149,19 @@ class EncodingManager:
             except (UnicodeDecodeError, LookupError):
                 cls.logger.debug(f"Hint encoding {hint_encoding} failed")
         
-        # Try chardet detection
-        try:
-            detected = chardet.detect(data)
-            if detected and detected.get('encoding'):
-                try:
-                    return data.decode(detected['encoding'])
-                except (UnicodeDecodeError, LookupError):
-                    pass
-        except Exception as e:
-            cls.logger.debug(f"Chardet detection failed: {e}")
+        # Try chardet detection when available
+        if chardet is not None:
+            try:
+                detected = chardet.detect(data)
+                if detected and detected.get('encoding'):
+                    try:
+                        return data.decode(detected['encoding'])
+                    except (UnicodeDecodeError, LookupError):
+                        pass
+            except Exception as e:
+                cls.logger.debug(f"Chardet detection failed: {e}")
+        else:
+            cls.logger.debug("chardet not available, skipping detection")
         
         # Fallback chain
         for encoding in cls.FALLBACK_ENCODINGS[:-1]:
@@ -169,9 +177,10 @@ class EncodingManager:
     def get_best_encoding(cls, data: bytes) -> str:
         """Get the best encoding for given bytes."""
         try:
-            detected = chardet.detect(data)
-            if detected and detected.get('encoding'):
-                return detected['encoding']
+            if chardet is not None:
+                detected = chardet.detect(data)
+                if detected and detected.get('encoding'):
+                    return detected['encoding']
         except Exception:
             pass
         return 'utf-8'
@@ -309,10 +318,15 @@ class EMLParser:
                     continue
                 filename = part.get_filename()
                 if filename:
+                    payload_bytes = part.get_payload(decode=True) or b''
+                    try:
+                        size = len(payload_bytes)
+                    except Exception:
+                        size = 0
                     attachments.append({
                         'filename': filename,
                         'content_type': part.get_content_type(),
-                        'size': len(part.get_payload(decode=True))
+                        'size': size
                     })
         
         return EmailMessage(
@@ -346,17 +360,32 @@ class MSGParser:
             
             subject = msg.subject or '(No Subject)'
             sender = msg.sender or '(Unknown)'
-            recipients = msg.to.split(';') if msg.to else []
-            cc = msg.cc.split(';') if msg.cc else []
-            date = msg.date.isoformat() if msg.date else datetime.now().isoformat()
+            # msg.to/cc can be strings with separators ; or ,
+            def _split_recipients(value):
+                if not value:
+                    return []
+                import re
+                return [v.strip() for v in re.split(r'[;,]', value) if v.strip()]
+            
+            recipients = _split_recipients(getattr(msg, 'to', None) or getattr(msg, 'to_','') or '')
+            cc = _split_recipients(getattr(msg, 'cc', None) or '')
+            # date may be a datetime or string
+            date_attr = getattr(msg, 'date', None)
+            if date_attr:
+                try:
+                    date = date_attr.isoformat() if hasattr(date_attr, 'isoformat') else str(date_attr)
+                except Exception:
+                    date = str(date_attr)
+            else:
+                date = datetime.now().isoformat()
             
             body = msg.body or ''
             
             return EmailMessage(
                 subject=subject,
                 sender=sender,
-                recipients=[r.strip() for r in recipients if r.strip()],
-                cc=[c.strip() for c in cc if c.strip()],
+                recipients=[r for r in recipients if r],
+                cc=[c for c in cc if c],
                 bcc=[],
                 date=date,
                 content_type='text/plain',
